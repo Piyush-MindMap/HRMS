@@ -1,0 +1,469 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Role 1-super admin, 2-head hr, 3-hr, 4-emp
+model Roles {
+  Id          Int      @id @default(autoincrement())
+  RoleName    String   @db.VarChar(50)
+  Permissions String   @db.Text
+  Timestamp   DateTime @default(now())
+
+}
+
+model Employees {
+  Id             Int    @id @default(autoincrement())
+  Uuid           String    @unique @db.Uuid
+  EmployeeID     String    @unique @default(dbgenerated("nextval('employee_id_seq'::regclass)"))
+  Picture        String?
+  FirstName      String    @default("") @db.VarChar(50)
+  LastName       String    @default("") @db.VarChar(50)
+  Email          String?   @unique @db.VarChar(100)
+  Phone          String?   @db.VarChar(15)
+  HireDate       DateTime
+  JobTitleID     String    @db.Uuid
+  JobTitle       JobTitles @relation(fields: [JobTitleID], references: [JobTitleID])
+  Role           Int       @default(4)
+  ManagerName    String?
+  ManagerID      String?
+  SecondaryManagerName    String?
+  SecondaryManagerID      String?
+  HrName         String?
+  HrID           String?
+  IsDeleted      Boolean   @default(false)
+  Status         Boolean   @default(true)
+  Timestamp      DateTime  @default(now())
+  
+     // Relations
+  UserAccounts     UserAccounts[]
+  Attendance       Attendance[]
+  WorkSchedules    WorkSchedules[]
+  LeaveRequests    LeaveRequests[]
+  Payroll          Payroll[]
+  EmployeeBenefits EmployeeBenefits[]
+  EmployeeDetails  EmployeeDetails[]
+  EmployeeEducation EmployeeEducation[]
+  BankAccounts BankAccounts[]
+  Compensation Compensation[]
+  EmployeeDocuments EmployeeDocuments[]
+  Overtime Overtime[]
+}
+
+model EmployeeDetails {
+  Id                        Int         @default(autoincrement())
+  DetailID                  String      @db.Uuid @unique
+  EmployeeID                String      
+  Employees                 Employees   @relation(fields: [EmployeeID], references: [EmployeeID])
+  PersonalEmail             String      @unique
+  PersonalPhone             Int         
+  EmergencyContactName      String
+  EmergencyContactPhone     Int
+  EmergencyContactRelaiton  String
+  BloodGroup                String
+  DOB                       DateTime
+  Gender                    String
+  CurrentAddress            String
+  PermanentAddress          String
+  Experience                Json?
+  Skills                    String?
+  HealthRecord              String?
+  Description               String?       @db.VarChar(300)
+  Status                    Boolean       @default(true)
+  CreatedDate               DateTime      @default(now())
+  UpdatedDate               DateTime?     @db.Timestamp()
+  IsDeleted                 Boolean       @default(false)
+  TimeStamp                 DateTime      @default(now())
+}
+
+model EmployeeDocuments{
+  Id                      Int         @default(autoincrement())
+  DocumentID              String      @db.Uuid @unique
+  EmployeeID              String      
+  Employees               Employees   @relation(fields: [EmployeeID], references: [EmployeeID])
+  Name                    String
+  ReferenceNumber         String
+  Attachment              String
+  Status                  Boolean     @default(true)
+  CreatedDate             DateTime    @default(now())
+  UpdatedDate             DateTime?   @db.Timestamp()
+  IsDeleted               Boolean     @default(false)
+  TimeStamp               DateTime    @default(now())
+
+  EmployeeEducation       EmployeeEducation[]
+}
+
+model EmployeeEducation {
+  Id                      Int         @default(autoincrement()) @unique
+  EmployeeEducationID     String      @db.Uuid @unique
+  EmployeeID              String
+  Employees               Employees   @relation(fields: [EmployeeID], references: [EmployeeID])
+  InstitutionName         String
+  Name                    String
+  Specialization          String?
+  Score                   String
+  ProofID                 String?   @db.Uuid
+  EmployeeDocument        EmployeeDocuments? @relation(fields: [ProofID], references: [DocumentID])
+  CompletionDate          DateTime
+  Status                  Boolean      @default(true)
+  CreatedDate             DateTime     @default(now())
+  UpdatedDate             DateTime?    @db.Timestamp()
+  IsDeleted               Boolean      @default(false)
+  TimeStamp               DateTime     @default(now())
+}
+
+model UserAccounts {
+  Id                  Int    @id @default(autoincrement())
+  Email               String    @default("") @db.VarChar(100) @unique
+  EmployeeID          String    @unique
+  UserID              String    @unique @db.Uuid
+  Username            String    @default("") @db.VarChar(50)
+  PasswordHash        String?    @default("") @db.VarChar(255)
+  Role                String    @default("") @db.VarChar(50)
+  CreatedDate         DateTime  @default(now())
+  UpdatedDate         DateTime? @db.Timestamp()
+  IsValidated         Boolean   @default(false)
+  LastLoginDate       DateTime?
+  Status              Boolean    @default(true)
+  FailedLoginAttempts Int?
+  Timestamp           DateTime  @default(now())
+  IsDeleted           Boolean   @default(false)
+
+  // Relations
+  Employee Employees @relation(fields: [EmployeeID], references: [EmployeeID])
+} 
+
+model JobTitles {
+  Id               Int    @id @default(autoincrement())
+  JobTitleID       String    @unique @db.Uuid
+  JobTitle         String    @db.VarChar(50)
+  Description      String?   @db.Text
+  MinSalary        Decimal   @db.Decimal(14, 2)
+  MaxSalary        Decimal   @db.Decimal(14, 2)
+  DepartmentID     String    @db.Uuid 
+  CreatedDate      DateTime  @default(now())
+  UpdatedDate      DateTime? @db.Timestamp()
+  Responsibilities String?   @db.Text
+  Status           Boolean   @default(true)
+  Timestamp        DateTime  @default(now()) @db.Timestamp(6)
+  IsDeleted        Boolean   @default(false)
+
+  Department Departments? @relation(fields: [DepartmentID], references: [DepartmentID])
+  Employees  Employees[]
+}
+ 
+model Departments {
+  Id             Int      @id @default(autoincrement())
+  DepartmentID   String      @unique @db.Uuid 
+  DepartmentName String      @db.VarChar(100)
+  LocationID     String      @db.Uuid 
+  Location       Location?    @relation(fields: [LocationID], references: [LocationID])
+  HODID          String?     
+  Budget         Decimal?    @db.Decimal(14, 2)
+  IsDeleted      Boolean     @default(false)
+  CreatedDate    DateTime    @default(now())
+  UpdatedDate    DateTime?   @db.Timestamp()
+  Status         Boolean     @default(true)
+  HeadCount      Int         @default(0)
+  Description    String?     @db.Text
+  Timestamp      DateTime    @default(now()) @db.Timestamp(6)
+  JobTitles      JobTitles[]
+  Policies       Policies[]
+}
+
+model Location {
+  Id            Int          @id @default(autoincrement())
+  LocationID    String          @unique @db.Uuid
+  LocationName  String          @db.VarChar(100)
+  Address       String          @db.VarChar(100)
+  City          String          @db.VarChar(50)
+  State         String          @db.VarChar(50)
+  Country       String          @db.VarChar(50)
+  TimeZone      String          @db.VarChar(50)
+  ContactNumber String?          @db.VarChar(20)
+  IsDeleted     Boolean         @default(false)
+  CreatedDate     DateTime        @default(now())
+  Timestamp     DateTime        @default(now()) @db.Timestamp(6)
+  
+  Departments   Departments[]
+}
+
+model WorkSchedules {
+  Id          Int       @id @default(autoincrement())
+  ScheduleID  String    @unique @db.Uuid
+  EmployeeID  String    @unique
+  StartTime   DateTime  @db.Time(6) 
+  EndTime     DateTime  @db.Time(6) 
+  DaysOfWeek  Int       @default(5)
+  Location    String?   @db.VarChar(100)
+  Status      Boolean   @default(true)
+  CreatedDate DateTime  @default(now())
+  UpdatedDate DateTime? @db.Timestamp()
+  Timestamp   DateTime  @default(now())
+  IsDeleted   Boolean   @default(false)
+
+  // Relations
+  Employee Employees @relation(fields: [EmployeeID], references: [EmployeeID])
+}
+
+model Policies {
+  Id            Int    @id @default(autoincrement())
+  PolicyID      String    @unique
+  DepartmentID  String?   @db.Uuid 
+  PolicyName    String    @db.VarChar(100)
+  Description   String?   @db.Text
+  Attachments   String?
+  EffectiveDate DateTime  @db.Date
+  ReviewDate    DateTime? @db.Date
+  Status        Boolean   @default(true)
+  CreatedDate   DateTime  @default(now())
+  UpdatedDate   DateTime? @db.Timestamp()
+  OwnerID       String?
+  Timestamp     DateTime  @default(now()) @db.Timestamp(6)
+  IsDeleted     Boolean   @default(false)
+
+  Department    Departments? @relation(fields: [DepartmentID], references: [DepartmentID])
+}
+
+model Notifications {
+  Id               Int    @id @default(autoincrement())
+  NotificationID   String    @unique @db.Uuid
+  UserID           String
+  Message          String    @db.Text
+  RelatedEntityID  String?
+  CreatedDate      DateTime  @default(now())
+  IsRead           Boolean   @default(false)
+  NotificationType String    @default("") @db.VarChar(50)
+  Status           Boolean   @default(true)
+  Priority         String    @default("") @db.VarChar(20)
+  ExpiryDate       DateTime?
+  Timestamp        DateTime  @default(now())
+  IsDeleted        Boolean   @default(false)
+}
+
+model LeaveRequests {
+  Id                    Int    @id @default(autoincrement())
+  LeaveRequestID        String    @unique
+  EmployeeID            String    
+  LeaveType             String    @db.VarChar(50)
+  StartDate             DateTime  @db.Date
+  EndDate               DateTime  @db.Date
+  Count                 Int       
+  Status                Boolean   @default(false)
+  Comments              String?   @db.Text
+  Attachment            String?   @db.VarChar(20)
+  CreatedDate           DateTime  @default(now())
+  UpdatedDate           DateTime? @db.Timestamp()
+  ApprovalDate          DateTime? @db.Timestamp(6)
+  Level1ApproverID      String?
+  Level1ApprovalStatus  Boolean?   @default(false)         
+  Level1ApprovalComment String?
+  Level1ApprovalDate    DateTime? @db.Timestamp(6)
+  Level2ApproverID      String?
+  Level2ApprovalComment String?
+  Level2ApprovalStatus  Boolean?   @default(false)
+  Level2ApprovalDate    DateTime? @db.Timestamp(6)
+  Level3ApproverID      String?
+  Level3ApprovalStatus  Boolean?   @default(false)
+  Level3ApprovalComment String?
+  Level3ApprovalDate    DateTime? @db.Timestamp(6)
+  Timestamp             DateTime  @default(now()) @db.Timestamp(6)
+  IsDeleted             Boolean   @default(false)
+
+  Employee Employees @relation(fields: [EmployeeID], references: [EmployeeID])
+}
+
+model EmployeeBenefits {
+  Id                Int    @id @default(autoincrement())
+  EmployeeID        String    
+  EmployeeBenefitID String    @unique
+  BenefitID         String
+  EnrollmentDate    DateTime  @db.Date
+  Status            Boolean   @default(true)
+  Comments          String?   @db.Text
+  CreatedDate       DateTime  @default(now())
+  UpdatedDate       DateTime? @db.Timestamp()
+  RenewalDate       DateTime? @db.Date
+  CoverageAmount    Decimal?  @db.Decimal(14, 2)
+  Timestamp         DateTime  @default(now()) @db.Timestamp(6)
+  IsDeleted         Boolean   @default(false)
+
+  Employee Employees @relation(fields: [EmployeeID], references: [EmployeeID])
+  Benefit  Benefits  @relation(fields: [BenefitID], references: [BenefitID])
+}
+
+model Benefits {
+  Id                  Int             @id @default(autoincrement())
+  BenefitID           String             @unique
+  BenefitName         String             @db.VarChar(100)
+  Attachment          String?
+  Description         String?            @db.Text
+  EligibilityCriteria String?            @db.Text
+  EnrollmentPeriod    String?            @db.VarChar(50)
+  Cost                Decimal?           @db.Decimal(14, 2)
+  Provider            String?            @db.VarChar(100)
+  Status              Boolean            @default(true)
+  CreatedDate         DateTime           @default(now())
+  UpdatedDate         DateTime?          @db.Timestamp()
+  IsDeleted           Boolean            @default(false)
+  Timestamp           DateTime           @default(now()) @db.Timestamp(6)
+  EmployeeBenefits    EmployeeBenefits[]
+}
+
+model Payroll {
+  Id               Int   @id @default(autoincrement())
+  PayrollID        String   @unique @db.Uuid
+  EmployeeID       String    
+  PayPeriodStart   DateTime
+  PayPeriodEnd     DateTime
+  GrossPay         Int
+  BasicPay         Int
+  HRA              Int
+  Allowances       Json?
+  Incentive        Int?
+  LoanDisbursement Int?
+  ProfessionalTax  Int?
+  IncomeTax        Int?
+  ESI              Int?
+  OtherDeductions  Json?
+  Bonuses          Int?
+  LoanRepayment    Int?
+  Reimbursements   Int?
+  OvertimeRate     Int?
+  NetPay           Int
+  PaymentDate      DateTime
+  PaymentMethod    String   @default("NEFT")
+  Currency         String   @default("INR") @db.VarChar(10)
+  EmployeeTaxCode  String   @db.VarChar(20)
+  PaymentStatus    String   @db.VarChar(20)
+  Notes            String   @db.Text
+  CreatedDate      DateTime @default(now())
+  UpdatedDate      DateTime?  @db.Timestamp()
+  IsDeleted        Boolean
+  Timestamp        DateTime @default(now())
+
+  // Relations
+  Employee Employees @relation(fields: [EmployeeID], references: [EmployeeID])
+}
+
+model Compensation {
+  Id                Int      @id @default(autoincrement())
+  CompensationID    String   @unique @db.Uuid
+  EmployeeID        String   @unique
+  CTC               Int
+  GrossPay          Int
+  BasicPay          Int
+  HRA               Int
+  Allowances        Json?
+  Incentive         Int?
+  Bonus             Int?
+  OvertimeRate      Int?
+  LoanID            String?
+
+  // Deductions
+  ProfessionalTax   Int?
+  TaxRegime         Int
+  ESI               Int?
+  OtherDeductions   Json?
+
+  // Payment Details
+  NetPay            Int
+  PaymentMethod     String   @default("NEFT")
+  Currency          String   @default("INR") @db.VarChar(10)
+  PaymentStatus     Boolean  @default(true)
+
+  // Metadata
+  Notes             String?   @db.Text
+  CreatedDate       DateTime  @default(now())
+  UpdatedDate       DateTime? @db.Timestamp()
+  IsDeleted         Boolean   @default(false)
+  Timestamp         DateTime  @default(now())
+
+  // Relations
+  Employee Employees @relation(fields: [EmployeeID], references: [EmployeeID])
+}
+
+model BankAccounts {
+  Id                      Int         @default(autoincrement())
+  BankAccountID           String      @db.Uuid @unique
+  EmployeeID              String      @unique
+  Employees               Employees   @relation(fields: [EmployeeID], references: [EmployeeID])
+  Name                    String
+  BankAccountNumber       String
+  IFSCNumber              String
+  Branch                  String?
+  Attachment              String?
+  Status                  Boolean     @default(true)
+  CreatedDate             DateTime    @default(now())
+  UpdatedDate             DateTime?   @db.Timestamp()
+  IsDeleted               Boolean     @default(false)
+  TimeStamp               DateTime    @default(now())
+}
+
+model Overtime {
+  OvertimeID              Int       @id @default(autoincrement())
+  EmployeeID              String    // Employee requesting overtime
+  RequestDate             DateTime  // Date of the overtime request
+  OvertimeHours           Float     // Number of hours requested for overtime
+  OvertimeRate            Float     // Overtime rate per hour (could be based on regular pay or set values)
+  OvertimePay             Float     // Calculated overtime pay (OvertimeHours * OvertimeRate)
+  Reason                  String    // Reason for requesting overtime (e.g., urgent project, holiday work)
+  ApprovalFinalStatus     String    // Status: Pending, Approved, Rejected
+  Level1ApproverID        String?
+  Level1ApprovalStatus    Boolean?   @default(false)         
+  Level1ApprovalComment   String?
+  Level1ApprovalDate      DateTime? @db.Timestamp(6)
+  Level2ApproverID        String?
+  Level2ApprovalComment   String?
+  Level2ApprovalStatus    Boolean?   @default(false)
+  Level2ApprovalDate      DateTime? @db.Timestamp(6)
+  CreatedDate             DateTime    @default(now())
+  UpdatedDate             DateTime?   @db.Timestamp()
+  IsDeleted               Boolean     @default(false)
+  TimeStamp               DateTime    @default(now())
+
+  Employees       Employees  @relation(fields: [EmployeeID], references: [EmployeeID])
+}
+
+
+model Holidays {
+  Id           Int   @id @default(autoincrement())
+  HolidayID    String   @unique @db.Uuid
+  LocationID   String?    @db.Uuid 
+  HolidayName  String   @default("") @db.VarChar(100)
+  HolidayDate  DateTime  @db.Date
+  CreatedDate  DateTime  @default(now())
+  UpdatedDate  DateTime? @db.Timestamp()
+  IsDeleted    Boolean  @default(false)
+  Timestamp    DateTime  @default(now())
+}
+
+model Attendance {
+  Id              Int    @id @default(autoincrement())
+  AttendanceID    String    @unique @db.Uuid
+  EmployeeID      String    
+  Date            DateTime  @db.Date     
+  CheckInTime     DateTime? @db.Time(6) 
+  CheckOutTime    DateTime? @db.Time(6) 
+  LateCheckIn     Boolean   @default(false)
+  Absent          Boolean   @default(true)
+  EarlyCheckOut   Boolean   @default(false)
+  WorkHours       String    @default("")
+  Overtime        String    @default("")
+  Status          Int       @default(0) // 0 not on leave, 1 on leave
+
+  Timestamp       DateTime  @default(now())
+  IsDeleted       Boolean   @default(false)
+  // Relations
+  Employee        Employees @relation(fields: [EmployeeID], references: [EmployeeID])
+  @@unique([EmployeeID, Date], name: "EmployeeID_Date")
+}
