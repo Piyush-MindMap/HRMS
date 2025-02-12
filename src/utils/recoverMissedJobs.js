@@ -6,8 +6,15 @@ export async function recoverMissedAttendanceJobs() {
   const today = new Date(getTodaysDate());
   const yesterday = new Date(getYesturdaysDate());
   const twoDaysAgo = get2daysBackDate(); // Restrict backfilling to the last two days
-
-  console.log('Recovering missed attendance jobs...');
+  const counts = await attendanceQueue.getJobCounts();
+  console.log('Recovering missed attendance jobs...',counts);
+  const delayedJobs = await attendanceQueue.getDelayed();
+console.log('Delayed Jobs:', delayedJobs.map(job => ({
+  id: job.id,
+  name: job.name,
+  data: job.data,
+  delay: job.opts.delay,
+})));
 
   // Check for yesterday's attendance
   const yesterdayAttendanceExists = await prisma.attendance.findMany({

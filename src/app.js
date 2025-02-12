@@ -17,7 +17,13 @@ const limiter = rateLimit({
   max: 100, // Limit each IP to 100 requests per windowMs
 });
 
-const upload = multer();
+
+const upload = multer({
+  storage: multer.memoryStorage(), // Or your desired storage
+  limits: {
+    fieldSize: 10 * 1024 * 1024, // Increase to 10 MB (adjust as needed)
+  },
+});
 
 
 
@@ -27,7 +33,7 @@ const app = express();
 
 
 // Middleware
-app.use(upload.none());
+app.use(upload.any());
 app.use(compression());
 app.use(helmet());
 app.use(cors());

@@ -1,7 +1,7 @@
 import prisma from '../../config/db.config.js';
 import { payrollQueue } from '../jobs/queues/payRoleQueue.js';
 
-const schedulePayroll = async (payPeriodStart, payPeriodEnd) => {
+ async function() {
   try {
     const employees = await prisma.employees.findMany({
       where: { IsDeleted: false },
@@ -13,7 +13,7 @@ const schedulePayroll = async (payPeriodStart, payPeriodEnd) => {
         payPeriodStart,
         payPeriodEnd,
       },{
-        repeat: { cron: cronTime, tz: 'Asia/Kolkata' },
+        repeat: { cron: ' * * * 30 * *', tz: 'Asia/Kolkata' },
         removeOnComplete: true, // Automatically remove completed jobs
         removeOnFail: true,     // Automatically remove failed jobs
       }
@@ -25,11 +25,3 @@ const schedulePayroll = async (payPeriodStart, payPeriodEnd) => {
     console.error('Error scheduling payroll generation:', error.message);
   }
 };
-
-// Example usage (e.g., schedule payroll for the current month)
-const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
-const endOfMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0);
-
-schedulePayroll(startOfMonth, endOfMonth);
-
-

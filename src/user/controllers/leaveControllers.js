@@ -109,7 +109,7 @@ export const getLeaveInfo = async (req, res) => {
 
 export const applyLeave = async (req, res) => {
   try {
-    const eid = req.user.eid; 
+    const eid = req.user.eid;
     const { LeaveType, StartDate, EndDate, Count, Comments, Attachment } = req.body;
 
     if (!LeaveType || !StartDate || !EndDate || !Count) {
@@ -124,8 +124,9 @@ export const applyLeave = async (req, res) => {
         EmployeeID: eid,
       },
       select: {
-        ManagerID: true, 
-        HrID: true
+        ManagerID: true,
+        HrID: true,
+        SecondaryManagerID: true, 
       },
     });
 
@@ -136,8 +137,9 @@ export const applyLeave = async (req, res) => {
       });
     }
 
-    const managerID = employee.ManagerID || "1"; // Default to "1" if no manager is found
-    const hrID = employee.HrID || null; // Leave as null if no HR is found
+    const managerID = employee.ManagerID || "1"; 
+    const secondaryManagerID = employee.SecondaryManagerID || null; 
+    const hrID = employee.HrID || null; 
 
     const leaveRequest = await prisma.leaveRequests.create({
       data: {
@@ -150,36 +152,52 @@ export const applyLeave = async (req, res) => {
         Comments,
         Attachment,
         CreatedDate: new Date(),
-        Level1ApproverID: managerID, // Assign the Manager or default to "1"
-        Level2ApproverID: hrID, // Assign the HR or leave as null
+        Level1ApproverID: managerID, 
+        Level2ApproverID: secondaryManagerID || hrID,
+        Level3ApproverID: secondaryManagerID ? hrID : null,
       },
     });
 
-    if(hrID){
-      const HrNotice = await prisma.notifications.create({
+    if (hrID) {
+      const hrNotice = await prisma.notifications.create({
         data: {
-          NotificationID : uuidv4(),
-          UserID  : hrID,
-          Message: Comments,    
-          RelatedEntityID  : eid,
-          NotificationType : "Leave"
-        }
-      })
-      sendRealTimeNotification(hrID, notHrNoticeice.Message)
+          NotificationID: uuidv4(),
+          UserID: hrID,
+          Message: Comments,
+          RelatedEntityID: eid,
+          NotificationType: "Leave",
+        },
+      });
+      sendRealTimeNotification(hrID, hrNotice);
     }
-    if(managerID){
+
+    // Send notification to Manager
+    if (managerID) {
       const managerNotice = await prisma.notifications.create({
         data: {
-          NotificationID : uuidv4(),
-          UserID  : managerID,
-          Message: Comments,    
-          RelatedEntityID  : eid,
-          NotificationType : "Leave"
-        }
-      })
-      sendRealTimeNotification(managerID, managerNotice.Message)
+          NotificationID: uuidv4(),
+          UserID: managerID,
+          Message: Comments,
+          RelatedEntityID: eid,
+          NotificationType: "Leave",
+        },
+      });
+      sendRealTimeNotification(managerID, managerNotice);
     }
-    
+
+    if (secondaryManagerID) {
+      const secondaryManagerNotice = await prisma.notifications.create({
+        data: {
+          NotificationID: uuidv4(),
+          UserID: secondaryManagerID,
+          Message: Comments,
+          RelatedEntityID: eid,
+          NotificationType: "Leave",
+        },
+      });
+      sendRealTimeNotification(secondaryManagerID, secondaryManagerNotice);
+    }
+
     res.status(201).json({
       status_code: 201,
       message: "Leave request submitted successfully.",
@@ -191,6 +209,56 @@ export const applyLeave = async (req, res) => {
       status_code: 500,
       message: "An error occurred while applying for leave.",
     });
+  }
+};
+
+export const approveLeaveByManager = async (req, res) => {
+  const { id, status, message } = req.body;
+  const eid = req.user.eid;
+  console.log("---->>>>>",eid, id, status, message)
+  try {
+      const leave = await prisma.leaveRequests.findUnique({
+          where:{
+              LeaveRequestID : id
+          },
+          select:{
+              Level1ApproverID: true,
+              Level1ApprovalStatus:true,
+              Level2ApproverID:true,
+              Level2ApprovalStatus:true,
+          }
+      })
+
+      console.log("->>>>>", leave.Level1ApproverID, leave.Level2ApproverID)
+
+    if(leave.Level1ApproverID !== String(eid) &&  leave.Level2ApproverID !== String(eid) ){
+      return res.status(401).json({ status_code: 401, message: "UnAuthorised." });
+    }
+
+    if(leave.Level1ApproverID !== String(eid)  && leave.Level1ApprovalStatus !== 1 ){
+      return res.status(400).json({ status_code: 400, message: "Leave request is not approved by all approvers." });
+    }
+
+    
+  } catch (error) {
+      console.log("---->>>>>",eid, id, status, message)
+      return res.status(404).json({ status_code: 404, message: "Leave request not found.", error });
+  }  
+
+
+      
+  try {
+      await prisma.leave.update({
+      where: { LeaveRequestID: id },
+      data: data
+      });
+      res.json({ status_code: 200, message: "Leave approved successfully." });
+  } catch (error) {
+      console.error("Error approving leave:", error);
+      res.status(500).json({
+      status_code: 500,
+      message: "An unexpected error occurred.",
+      });
   }
 };
 

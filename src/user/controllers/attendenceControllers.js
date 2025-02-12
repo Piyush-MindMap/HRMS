@@ -189,3 +189,43 @@ export const employeeCheckout = async (req, res) => {
         });
     } 
 };
+
+export const employeeTodaysAttendance = async (req, res) => {
+    const eid = req.user.eid;
+    const today = new Date(getTodaysDate());
+    try{
+        const attendance = await prisma.attendance.findMany({
+            where:{
+                EmployeeID: eid,
+                Date: today
+            },
+            select:{
+                CheckInTime: true,
+                CheckOutTime: true,
+                Status: true,
+                LateCheckIn: true,
+                EarlyCheckOut: true,
+                Overtime: true,
+                WorkHours: true
+            }
+        });
+        if(attendance.length){
+            return res.status(200).json({
+                status_code: 200,
+                message: 'Attendance fetched successfully',
+                data: attendance
+            });
+        }
+        return res.status(200).json({
+            status_code: 200,
+            message: 'Attendance fetched successfully',
+            data: []
+        });
+    }
+    catch{
+        return res.status(500).json({
+            status_code: 500,
+            message: 'No attendance record found for today'
+        });
+    }
+}

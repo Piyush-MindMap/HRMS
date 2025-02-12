@@ -102,7 +102,10 @@ export const createEmployee = async (req, res) => {
               Email : allData.professionalEmail,
               Phone : allData?.professionalPhone ? allData?.professionalPhone : null,
               HireDate : allData.hireDate,
-              JobTitleID : allData.jobTitleId,
+              //JobTitleID : allData.jobTitleId,
+              JobTitle: {
+                connect: { JobTitleID: allData.jobTitleId }, // Replace with the actual JobTitle ID
+              },
               Role : parseInt(allData.Role,10),
               ManagerName : allData?.managerName ? allData?.managerName : null ,
               ManagerID : allData?.managerId ?allData?.managerId : null ,
@@ -127,7 +130,9 @@ export const createEmployee = async (req, res) => {
         await transaction.workSchedules.create({
             data:{
                 ScheduleID: uuidv4(),
-                EmployeeID: employee.EmployeeID,
+                Employee:{
+                  connect: { EmployeeID: employee.EmployeeID}
+                },
                 StartTime: allData.startTime,
                 EndTime: allData.endTime,
                 DaysOfWeek: parseInt(allData.daysOfWeek,10),
@@ -139,9 +144,11 @@ export const createEmployee = async (req, res) => {
         await transaction.employeeDetails.create({
             data:{
                 DetailID: uuidv4(),
-                EmployeeID:employee.EmployeeID,
+                Employees:{
+                  connect: { EmployeeID: employee.EmployeeID}
+                },
                 PersonalEmail: allData.personalEmail,
-                PersonalPhone: parseInt(allData.personalPhone,10),
+                PersonalPhone: allData.personalPhone ,
                 EmergencyContactName : allData.emergencyContactName,
                 EmergencyContactPhone : parseInt(allData.emergencyContactPhone,10),
                 EmergencyContactRelaiton : allData.emergencyContactRelation,
@@ -160,7 +167,9 @@ export const createEmployee = async (req, res) => {
         await transaction.bankAccounts.create({
             data:{
                 BankAccountID : uuidv4(),
-                EmployeeID: employee.EmployeeID,
+                Employees:{
+                  connect: { EmployeeID: employee.EmployeeID}
+                },
                 Name: allData.bankName,
                 BankAccountNumber : allData.bankAccountNumber,
                 IFSCNumber : allData.ifsc,
@@ -171,20 +180,24 @@ export const createEmployee = async (req, res) => {
         await transaction.compensation.create({
             data:{
                 CompensationID : uuidv4(),
-                EmployeeID : employee.EmployeeID,
-                CTC : parseInt(allData.grossPay,10) * 12,
-                GrossPay : parseInt( allData.grossPay, 10),
+                Employees:{
+                  connect: { EmployeeID: employee.EmployeeID}
+                },
+                CTC : (parseInt(allData.basicPay,10)+parseInt(allData?.allowances,10)+parseInt(allData?.incentive,10)+parseInt(allData?.bonus,10)) * 12,
+                GrossPay : parseInt(allData.basicPay,10)+parseInt(allData?.allowances,10)+parseInt(allData?.incentive,10)+parseInt(allData?.bonus,10),
                 BasicPay : parseInt(allData.basicPay,10),
                 HRA : parseInt(allData.hra),
-                Allowances : allData?.allowances ? JSON.parse(allData?.allowances): null,
+                //Allowances : allData?.allowances ? JSON.parse(allData?.allowances): null,
+                Allowances : allData?.allowances ? allData?.allowances: null,
                 Incentive : allData?.incentive ? parseInt(allData?.incentive,10) : null,
                 Bonus : allData?.bonus ? parseInt(allData?.bonus,10) : null,
                 OvertimeRate : allData?.overtimeRate ? parseInt(allData?.overtimeRate,10) : null, 
-                ProfessionalTax : allData?.overtimeRate ? parseInt(allData?.overtimeRate,10) : null, 
-                TaxRegime : parseInt(allData.taxRegime,10),
+                ProfessionalTax : allData?.professionalTax ? parseInt(allData?.professionalTax,10) : null, 
+                TaxRegime : 1,
                 ESI : allData.esi ? parseInt(allData.esi,10) : null,
-                OtherDeductions : allData.otherDeductions ? JSON.parse(allData.otherDeductions) : null,
-                NetPay : parseInt(allData.netPay,10)
+                //OtherDeductions : allData.otherDeductions ? JSON.parse(allData.otherDeductions) : null,
+                OtherDeductions : allData.otherDeductions ? parseInt(allData.otherDeductions) : null,
+                NetPay : parseInt(allData.basicPay,10)+parseInt(allData?.allowances,10)+parseInt(allData?.incentive,10)+parseInt(allData?.bonus,10) - parseInt(allData?.professionalTax,10)-parseInt(allData.otherDeductions) - parseInt(allData.esi,10)
             }
         })
 
@@ -221,7 +234,9 @@ export const createEmployee = async (req, res) => {
   for (const { filePath, doc } of writtenFiles) {
     const addedDoc = await transaction.employeeDocuments.create({
       data: {
-        EmployeeID: employee.EmployeeID,
+        Employees:{
+          connect: { EmployeeID: employee.EmployeeID}
+        },
         DocumentID: uuidv4(),
         Name: doc.name,
         ReferenceNumber: doc?.referenceNumber || doc?.score,
@@ -234,13 +249,17 @@ export const createEmployee = async (req, res) => {
       await transaction.employeeEducation.create({
         data: {
           EmployeeEducationID: uuidv4(),
-          EmployeeID: employee.EmployeeID,
+          Employees:{
+            connect: { EmployeeID: employee.EmployeeID}
+          },
           Name: doc.name,
           Score: doc.score,
           InstitutionName: doc.institutionName,
           Specialization: doc.specialization,
           CompletionDate: doc.completionDate,
-          ProofID: addedDoc.DocumentID,
+          EmployeeDocument:{
+            connect: {DocumentID : addedDoc.DocumentID},
+          }
         },
       });
     }
@@ -349,4 +368,75 @@ export const getEmployeeAttendence = async (req, res) => {
     pageSize: attendence.length,
     totalPages: Math.ceil(attendenceCount / limitNumber)
 });
+}
+
+export const getAllLeaveRequests = async (req, res) => {
+  const { page = 1, limit = 10, ...filters } = req.query;
+  const pageNumber = parseInt(page, 10);
+  const limitNumber = parseInt(limit, 10);
+  const status = filters?.status;
+
+  const skip = (pageNumber - 1) * limitNumber;
+  const where = {};
+
+  if (status) {
+    where['Status'] = parseInt(status, 10);
+  }
+
+  where['Level3ApproverID'] = req.user.eid;
+
+  const leaveRequests = await prisma.leaveRequests.findMany({
+    where,
+    skip,
+    take: limitNumber,
+    orderBy: { Timestamp: 'desc' } 
+  });
+
+  const leaveRequestsWithNames = await Promise.all(leaveRequests.map(async (record) => {
+    const employee = await prisma.employees.findUnique({
+      where: { EmployeeID: record.EmployeeID },
+      select: { FirstName: true, LastName: true }
+    });
+    return {
+      ...record,
+      FirstName: employee?.FirstName || '',
+      LastName: employee?.LastName || ''
+    };
+  }));
+
+  const leaveRequestsCount = await prisma.leaveRequests.count({ where });
+
+  res.json({
+    status_code: 200,
+    data: leaveRequestsWithNames,
+    total: leaveRequestsCount,
+    page: pageNumber,
+    pageSize: leaveRequests.length,
+    totalPages: Math.ceil(leaveRequestsCount / limitNumber)
+  });
+}
+
+export const getLeaveRequestKpi = async (req, res) => {
+  const allLeaveRequests = await prisma.leaveRequests.findMany(
+    {
+      where:{
+        Level3ApproverID: req.user.eid
+      }
+    }
+  );
+
+  const kpi = {pending:0, approved:0, rejected:0, total:allLeaveRequests.length}
+  allLeaveRequests.forEach((leave)=>{
+    if(leave.Status===0){
+      kpi.pending+=1;
+    }
+    if(leave.Status===1){
+      kpi.approved+=1;
+    }
+    if(leave.Status===2){
+      kpi.rejected+=1;
+    }
+  })
+
+  res.status(200).json({status_code:200, data:kpi})
 }

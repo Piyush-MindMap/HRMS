@@ -32,7 +32,6 @@ model Employees {
   Phone          String?   @db.VarChar(15)
   HireDate       DateTime
   JobTitleID     String    @db.Uuid
-  JobTitle       JobTitles @relation(fields: [JobTitleID], references: [JobTitleID])
   Role           Int       @default(4)
   ManagerName    String?
   ManagerID      String?
@@ -44,7 +43,8 @@ model Employees {
   Status         Boolean   @default(true)
   Timestamp      DateTime  @default(now())
   
-     // Relations
+  // Relations
+  JobTitle       JobTitles @relation(fields: [JobTitleID], references: [JobTitleID])
   UserAccounts     UserAccounts[]
   Attendance       Attendance[]
   WorkSchedules    WorkSchedules[]
@@ -65,7 +65,7 @@ model EmployeeDetails {
   EmployeeID                String      
   Employees                 Employees   @relation(fields: [EmployeeID], references: [EmployeeID])
   PersonalEmail             String      @unique
-  PersonalPhone             Int         
+  PersonalPhone             String         
   EmergencyContactName      String
   EmergencyContactPhone     Int
   EmergencyContactRelaiton  String
@@ -111,7 +111,7 @@ model EmployeeEducation {
   Name                    String
   Specialization          String?
   Score                   String
-  ProofID                 String?   @db.Uuid
+  ProofID                 String?      @db.Uuid
   EmployeeDocument        EmployeeDocuments? @relation(fields: [ProofID], references: [DocumentID])
   CompletionDate          DateTime
   Status                  Boolean      @default(true)
@@ -258,22 +258,22 @@ model LeaveRequests {
   StartDate             DateTime  @db.Date
   EndDate               DateTime  @db.Date
   Count                 Int       
-  Status                Boolean   @default(false)
+  Status                Int       @default(0)
   Comments              String?   @db.Text
   Attachment            String?   @db.VarChar(20)
   CreatedDate           DateTime  @default(now())
   UpdatedDate           DateTime? @db.Timestamp()
   ApprovalDate          DateTime? @db.Timestamp(6)
   Level1ApproverID      String?
-  Level1ApprovalStatus  Boolean?   @default(false)         
+  Level1ApprovalStatus  Int       @default(0)         
   Level1ApprovalComment String?
   Level1ApprovalDate    DateTime? @db.Timestamp(6)
   Level2ApproverID      String?
   Level2ApprovalComment String?
-  Level2ApprovalStatus  Boolean?   @default(false)
+  Level2ApprovalStatus  Int       @default(0)
   Level2ApprovalDate    DateTime? @db.Timestamp(6)
   Level3ApproverID      String?
-  Level3ApprovalStatus  Boolean?   @default(false)
+  Level3ApprovalStatus  Int       @default(0)
   Level3ApprovalComment String?
   Level3ApprovalDate    DateTime? @db.Timestamp(6)
   Timestamp             DateTime  @default(now()) @db.Timestamp(6)
@@ -389,7 +389,7 @@ model Compensation {
   Timestamp         DateTime  @default(now())
 
   // Relations
-  Employee Employees @relation(fields: [EmployeeID], references: [EmployeeID])
+  Employees Employees @relation(fields: [EmployeeID], references: [EmployeeID])
 }
 
 model BankAccounts {
@@ -400,7 +400,7 @@ model BankAccounts {
   Name                    String
   BankAccountNumber       String
   IFSCNumber              String
-  Branch                  String?
+  Branch                  String? 
   Attachment              String?
   Status                  Boolean     @default(true)
   CreatedDate             DateTime    @default(now())
@@ -464,6 +464,6 @@ model Attendance {
   Timestamp       DateTime  @default(now())
   IsDeleted       Boolean   @default(false)
   // Relations
-  Employee        Employees @relation(fields: [EmployeeID], references: [EmployeeID])
+  Employees        Employees @relation(fields: [EmployeeID], references: [EmployeeID])
   @@unique([EmployeeID, Date], name: "EmployeeID_Date")
 }

@@ -36,7 +36,7 @@ const attendanceWorker = new Worker(
       where: {
         StartDate: { lte: targetDate },
         EndDate: { gte: targetDate },
-        Status: true,
+        Status: 1,
         IsDeleted: false,
       },
     });

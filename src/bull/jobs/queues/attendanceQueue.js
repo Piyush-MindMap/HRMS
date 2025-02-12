@@ -5,4 +5,5 @@ const attendanceQueue = new Queue('attendance-queue', {
   connection: redisConfig,
 });
 
+
 export { attendanceQueue };
